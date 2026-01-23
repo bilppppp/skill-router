@@ -45,17 +45,31 @@ program
 // init 命令
 program
   .command('init')
-  .description('Initialize registry by scanning for installed skills')
+  .description('Initialize registry by scanning for installed skills (deep scan by default)')
   .option('-p, --project', 'Use project-level registry')
   .option('-g, --global-only', 'Only scan global skills')
   .option('--project-only', 'Only scan project skills')
+  .option('-s, --shallow', 'Shallow scan: only check predefined paths (faster but may miss skills)')
   .option('-c, --clear', 'Clear existing registry before scanning')
+  .addHelpText('after', `
+Examples:
+  # Deep scan (default): find ALL SKILL.md files in the entire project
+  skill-router init
+
+  # Clear existing and rescan
+  skill-router init --clear
+
+  # Shallow scan: only check predefined paths (faster)
+  skill-router init --shallow
+`)
   .action(async (options) => {
-    const spinner = ora('Scanning for skills...').start();
+    const scanType = options.shallow ? 'Shallow scanning' : 'Deep scanning';
+    const spinner = ora(`${scanType} for skills...`).start();
     
     try {
       const result = await init(options);
-      spinner.succeed(`Found ${result.count} skills`);
+      const suffix = result.isDeep ? ' (deep scan)' : ' (shallow scan)';
+      spinner.succeed(`Found ${result.count} skills${suffix}`);
       
       if (result.skills.length > 0) {
         console.log('\nRegistered skills:');

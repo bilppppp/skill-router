@@ -8,7 +8,7 @@ import { execSync } from 'child_process';
 import { existsSync } from 'fs';
 import { resolve, join } from 'path';
 
-import { scanAll, scanProject, scanGlobal, addFromPath, addAllFromPath } from './scanner.js';
+import { scanAll, scanProject, scanGlobal, scanDeep, addFromPath, addAllFromPath } from './scanner.js';
 import {
   loadRegistry,
   saveRegistry,
@@ -32,6 +32,7 @@ import { SKILL_SOURCES, REGISTRY_FILE } from './constants.js';
  * @param {object} options - 选项
  * @param {boolean} options.projectOnly - 只扫描项目级
  * @param {boolean} options.globalOnly - 只扫描全局
+ * @param {boolean} options.shallow - 浅扫描（只扫描预定义路径，非默认）
  * @param {boolean} options.clear - 清空现有 registry
  * @returns {object} 初始化结果
  */
@@ -43,14 +44,18 @@ export async function init(options = {}) {
     clearRegistry(registryPath);
   }
   
-  // 扫描 skills
+  // 扫描 skills（默认深度扫描）
   let skills = [];
-  if (options.projectOnly) {
+  if (options.shallow) {
+    // 浅扫描：只扫描预定义路径
+    skills = scanAll();
+  } else if (options.projectOnly) {
     skills = scanProject();
   } else if (options.globalOnly) {
     skills = scanGlobal();
   } else {
-    skills = scanAll();
+    // 默认：深度扫描
+    skills = scanDeep(process.cwd());
   }
   
   // 注册到 registry
@@ -60,6 +65,7 @@ export async function init(options = {}) {
     registryPath,
     count: skills.length,
     skills: skills.map(s => ({ id: s.id, name: s.name, path: s.path })),
+    isDeep: !options.shallow && !options.projectOnly && !options.globalOnly,
   };
 }
 

@@ -164,6 +164,75 @@ export function scanAll(projectDir = process.cwd()) {
 }
 
 /**
+ * 深度扫描：递归搜索整个目录下的所有 SKILL.md
+ * @param {string} rootDir - 根目录
+ * @param {number} maxDepth - 最大递归深度
+ * @returns {object[]} 发现的 skills 列表
+ */
+export function scanDeep(rootDir = process.cwd(), maxDepth = 10) {
+  const skills = [];
+  const visited = new Set();
+  
+  function scan(dir, depth) {
+    if (depth > maxDepth) return;
+    if (visited.has(dir)) return;
+    visited.add(dir);
+    
+    if (!existsSync(dir) || !statSync(dir).isDirectory()) return;
+    
+    // 检查当前目录是否有 SKILL.md
+    for (const name of SKILL_MANIFEST_NAMES) {
+      const manifestPath = join(dir, name);
+      if (existsSync(manifestPath)) {
+        const skill = parseSkillManifest(manifestPath);
+        if (skill && !skills.find(s => s.manifest === skill.manifest)) {
+          skills.push(skill);
+        }
+        // 找到 SKILL.md 后不再递归此目录的子目录
+        return;
+      }
+    }
+    
+    // 递归子目录
+    try {
+      const entries = readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        
+        // 跳过不需要扫描的目录
+        const skipDirs = [
+          'node_modules', '.git', '.svn', '.hg',
+          'dist', 'build', 'out', 'target',
+          '__pycache__', '.pytest_cache', '.mypy_cache',
+          'venv', '.venv', 'env', '.env',
+          '.idea', '.vscode', '.cursor',
+        ];
+        if (entry.name.startsWith('.') && !entry.name.startsWith('.agent') && !entry.name.startsWith('.cursor')) {
+          continue;
+        }
+        if (skipDirs.includes(entry.name)) continue;
+        
+        scan(join(dir, entry.name), depth + 1);
+      }
+    } catch (e) {
+      // 忽略权限错误
+    }
+  }
+  
+  scan(rootDir, 0);
+  
+  // 也扫描全局路径
+  const globalSkills = scanGlobal();
+  for (const skill of globalSkills) {
+    if (!skills.find(s => s.manifest === skill.manifest)) {
+      skills.push(skill);
+    }
+  }
+  
+  return skills;
+}
+
+/**
  * 从指定的 manifest 路径添加 skill
  * @param {string} manifestPath - SKILL.md 或目录路径
  * @returns {object|null} 解析出的 skill 信息

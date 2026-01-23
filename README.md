@@ -22,7 +22,10 @@ npm link  # 全局安装 CLI
 ## 快速开始
 
 ```bash
-# 1. 初始化：扫描所有已安装的 skills
+# 1. 初始化：深度扫描所有 SKILL.md（推荐首次使用）
+skill-router init --deep
+
+# 或只扫描标准路径（如 .agent/skills/、.cursor/skills/ 等）
 skill-router init
 
 # 2. 查看已注册的 skills
@@ -83,6 +86,7 @@ skill-router add --raw "npx add-skill vercel-labs/agent-skills --skill my-skill"
 | 命令 | 说明 |
 |------|------|
 | `init` | 初始化，扫描标准路径下的 skills |
+| `init --deep` | 深度扫描，递归搜索整个目录下的所有 SKILL.md |
 | `refresh` | 刷新，重新扫描并更新 registry |
 | `add <name>` | 通过 npx add-skill 安装并注册 |
 | `add-path <path>` | 手动添加（指定 SKILL.md 或目录） |
