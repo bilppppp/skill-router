@@ -24,6 +24,15 @@ import {
   exportTableBrief,
   setSkillBrief,
   REGISTRY_FILE,
+  // Workflow functions
+  getWorkflowsPath,
+  addWorkflow,
+  removeWorkflow,
+  getWorkflow,
+  listWorkflows,
+  matchWorkflow,
+  exportWorkflows,
+  exportWorkflowsBrief,
 } from '../src/index.js';
 
 const program = new Command();
@@ -356,6 +365,168 @@ program
     } catch (e) {
       console.error(chalk.red(`✗ ${e.message}`));
       process.exit(1);
+    }
+  });
+
+// ========== Workflow Commands ==========
+
+// workflow 命令组
+const workflowCmd = program
+  .command('workflow')
+  .alias('wf')
+  .description('Manage saved workflows');
+
+// workflow list
+workflowCmd
+  .command('list')
+  .alias('ls')
+  .description('List all saved workflows')
+  .option('-p, --project', 'Use project-level workflows')
+  .option('-b, --brief', 'Show brief format')
+  .action((options) => {
+    const workflowsPath = getWorkflowsPath(options.project);
+    const workflows = listWorkflows(workflowsPath);
+    
+    if (workflows.length === 0) {
+      console.log(chalk.yellow('No workflows saved yet.'));
+      console.log(chalk.gray('Workflows are created when you save a multi-skill operation.'));
+      return;
+    }
+    
+    if (options.brief) {
+      console.log(exportWorkflowsBrief(workflowsPath));
+    } else {
+      console.log(exportWorkflows(workflowsPath));
+    }
+  });
+
+// workflow show
+workflowCmd
+  .command('show <workflow-id>')
+  .description('Show detailed information about a workflow')
+  .option('-p, --project', 'Use project-level workflows')
+  .action((workflowId, options) => {
+    const workflowsPath = getWorkflowsPath(options.project);
+    const workflow = getWorkflow(workflowId, workflowsPath);
+    
+    if (!workflow) {
+      console.error(chalk.red(`Workflow not found: ${workflowId}`));
+      process.exit(1);
+    }
+    
+    console.log(chalk.bold(`\n${workflow.name}\n`));
+    console.log(`ID:        ${workflow.id}`);
+    console.log(`Triggers:  ${(workflow.triggers || []).join(', ') || 'None'}`);
+    console.log(`Usage:     ${workflow.usageCount || 0} times`);
+    console.log(`Created:   ${workflow.created}`);
+    if (workflow.lastUsed) {
+      console.log(`Last used: ${workflow.lastUsed}`);
+    }
+    
+    console.log(chalk.bold('\nSteps:'));
+    for (let i = 0; i < (workflow.steps || []).length; i++) {
+      const step = workflow.steps[i];
+      const confirm = step.confirm ? chalk.yellow(' [requires confirm]') : '';
+      console.log(`  ${i + 1}. ${chalk.green(step.skill)} - ${step.description || ''}${confirm}`);
+    }
+  });
+
+// workflow save
+workflowCmd
+  .command('save <name>')
+  .description('Save a new workflow')
+  .option('-p, --project', 'Use project-level workflows')
+  .option('-t, --triggers <triggers>', 'Comma-separated trigger phrases')
+  .option('-s, --steps <steps>', 'Comma-separated skill IDs (e.g. "dankoe-writer,three-writers-council")')
+  .addHelpText('after', `
+Example:
+  skill-router workflow save "公众号文章流程" \\
+    --triggers "写公众号,写一篇公众号文章" \\
+    --steps "dankoe-writer,three-writers-council,baoyu-cover-image"
+`)
+  .action((name, options) => {
+    if (!options.steps) {
+      console.error(chalk.red('Error: --steps is required'));
+      console.log(chalk.gray('Example: --steps "dankoe-writer,three-writers-council"'));
+      process.exit(1);
+    }
+    
+    const workflowsPath = getWorkflowsPath(options.project);
+    
+    const workflow = {
+      name,
+      triggers: options.triggers ? options.triggers.split(',').map(t => t.trim()) : [],
+      steps: options.steps.split(',').map(s => ({
+        skill: s.trim(),
+        description: '',
+      })),
+    };
+    
+    try {
+      const result = addWorkflow(workflow, workflowsPath);
+      if (result.isNew) {
+        console.log(chalk.green(`✓ Created workflow: ${result.workflow.name}`));
+      } else {
+        console.log(chalk.green(`✓ Updated workflow: ${result.workflow.name}`));
+      }
+      console.log(chalk.gray(`  ID: ${result.workflow.id}`));
+      console.log(chalk.gray(`  Triggers: ${(result.workflow.triggers || []).join(', ') || 'None'}`));
+      console.log(chalk.gray(`  Steps: ${result.workflow.steps.map(s => s.skill).join(' → ')}`));
+    } catch (e) {
+      console.error(chalk.red(`✗ ${e.message}`));
+      process.exit(1);
+    }
+  });
+
+// workflow remove
+workflowCmd
+  .command('remove <workflow-id>')
+  .alias('rm')
+  .description('Remove a saved workflow')
+  .option('-p, --project', 'Use project-level workflows')
+  .action((workflowId, options) => {
+    const workflowsPath = getWorkflowsPath(options.project);
+    
+    const success = removeWorkflow(workflowId, workflowsPath);
+    if (success) {
+      console.log(chalk.green(`✓ Removed workflow: ${workflowId}`));
+    } else {
+      console.error(chalk.red(`Workflow not found: ${workflowId}`));
+      process.exit(1);
+    }
+  });
+
+// workflow match
+workflowCmd
+  .command('match <input>')
+  .description('Check if input matches any saved workflow')
+  .option('-p, --project', 'Use project-level workflows')
+  .action((input, options) => {
+    const workflowsPath = getWorkflowsPath(options.project);
+    const matched = matchWorkflow(input, workflowsPath);
+    
+    if (matched) {
+      console.log(chalk.green(`✓ Matched workflow: ${matched.name}`));
+      console.log(chalk.gray(`  ID: ${matched.id}`));
+      console.log(chalk.gray(`  Steps: ${matched.steps.map(s => s.skill).join(' → ')}`));
+    } else {
+      console.log(chalk.yellow('No matching workflow found.'));
+    }
+  });
+
+// workflow export
+workflowCmd
+  .command('export')
+  .description('Export workflows for agent context')
+  .option('-p, --project', 'Use project-level workflows')
+  .option('-b, --brief', 'Export brief version')
+  .action((options) => {
+    const workflowsPath = getWorkflowsPath(options.project);
+    
+    if (options.brief) {
+      console.log(exportWorkflowsBrief(workflowsPath));
+    } else {
+      console.log(exportWorkflows(workflowsPath));
     }
   });
 

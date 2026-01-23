@@ -78,6 +78,8 @@ skill-router add --raw "npx add-skill vercel-labs/agent-skills --skill my-skill"
 
 ## 命令列表
 
+### Skill 管理
+
 | 命令 | 说明 |
 |------|------|
 | `init` | 初始化，扫描标准路径下的 skills |
@@ -92,6 +94,17 @@ skill-router add --raw "npx add-skill vercel-labs/agent-skills --skill my-skill"
 | `export` | 导出路由表（Markdown 或 JSON） |
 | `export --brief` | 导出精简版路由表（节省 token） |
 | `set-brief <id> <brief>` | 设置 skill 的一句话简介 |
+
+### Workflow 管理
+
+| 命令 | 说明 |
+|------|------|
+| `workflow list` / `wf ls` | 列出所有已保存的工作流 |
+| `workflow show <id>` | 查看工作流详情 |
+| `workflow save <name>` | 保存新的工作流 |
+| `workflow remove <id>` | 删除工作流 |
+| `workflow match <input>` | 检查输入是否匹配某个工作流 |
+| `workflow export` | 导出工作流列表 |
 
 ## 选项
 
@@ -203,6 +216,67 @@ Agent: "看起来你需要 humanizer-zh，让我读取它的详细说明..."
 ```bash
 skill-router set-brief three-writers-council "三人议会协作打磨公众号长文"
 ```
+
+## 工作流固化
+
+当你经常执行"写稿 → 三人会议 → 生成封面 → 发布"这样的多步骤流程时，可以将其保存为工作流：
+
+### 保存工作流
+
+```bash
+skill-router workflow save "公众号文章流程" \
+  --triggers "写公众号,写一篇公众号文章" \
+  --steps "dankoe-writer,three-writers-council,baoyu-cover-image,baoyu-post-to-wechat"
+```
+
+### 查看工作流
+
+```bash
+skill-router workflow list
+
+# 输出：
+# | 工作流 | 触发词 | 步骤 |
+# |--------|--------|------|
+# | 公众号文章流程 | 写公众号、写一篇公众号文章 | dankoe-writer → three-writers-council → ... |
+```
+
+### 匹配检测
+
+```bash
+skill-router workflow match "帮我写公众号"
+# ✓ Matched workflow: 公众号文章流程
+```
+
+### 工作流存储
+
+工作流保存在 `~/.skill-router/workflows.json`：
+
+```json
+{
+  "workflows": [
+    {
+      "id": "公众号文章流程",
+      "name": "公众号文章流程",
+      "triggers": ["写公众号", "写一篇公众号文章"],
+      "steps": [
+        { "skill": "dankoe-writer", "description": "生成初稿" },
+        { "skill": "three-writers-council", "description": "打磨文章" },
+        { "skill": "baoyu-cover-image", "description": "生成封面" }
+      ],
+      "usageCount": 5
+    }
+  ]
+}
+```
+
+### Agent 自动触发
+
+在 Cursor Rule 或系统提示词中配置后，当用户说"写公众号"时，Agent 会：
+
+1. 检测到匹配的工作流
+2. 向用户展示步骤并确认
+3. 依次执行各个 skill
+4. 完成后统计使用次数
 
 ## 与 Cursor Rule 配合使用
 
