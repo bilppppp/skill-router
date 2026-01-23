@@ -1,0 +1,32 @@
+{
+  "name": "skill-router",
+  "version": "0.1.0",
+  "description": "A CLI tool for discovering, registering, and managing AI Agent skills with dynamic routing table",
+  "main": "src/index.js",
+  "type": "module",
+  "bin": {
+    "skill-router": "./bin/skill-router.js"
+  },
+  "scripts": {
+    "start": "node bin/skill-router.js",
+    "test": "node --test"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "skills",
+    "routing",
+    "mcp",
+    "cursor"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^12.0.0",
+    "chokidar": "^3.5.3",
+    "yaml": "^2.3.4",
+    "glob": "^10.3.10",
+    "ora": "^8.0.1"
+  }
+}
